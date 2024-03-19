@@ -5,8 +5,12 @@
 #include <sys/socket.h>
 #include <thread>
 #include <atomic>
-#include <functional> 
+#include <functional>
+#include <vector> 
 #include </home/dana/mavlink/build/include/mavlink/common/mavlink.h>
+
+
+using namespace std;
 
 struct  MavData 
 {
@@ -52,14 +56,14 @@ struct  MavData
         uint8_t battery_function;//	MAV_BATTERY_FUNCTION	Function of the battery
         uint8_t type;//MAV_BATTERY_TYPE	Type (chemistry) of the battery
         int16_t temperature;//degC		Temperature of the battery. 
-        uint16_t[10] voltages;//mV		Battery voltage of cells 1 to 10 (see voltages_ext for cells 11-14). 
+        vector <uint16_t> voltages;//mV		Battery voltage of cells 1 to 10 (see voltages_ext for cells 11-14). 
         int16_t current_battery;//	cA		Battery current, -1: autopilot does not measure the current
         int32_t current_consumed;//mAh		Consumed charge, -1: autopilot does not provide consumption estimate
         int32_t energy_consumed;//hJ		Consumed energy, -1: autopilot does not provide energy consumption estimate
         uint8_t  battery_remaining;//%		Remaining battery energy. Values: [0-100], -1: autopilot does not estimate the remaining battery.
         int32_t  time_remaining;//s		Remaining battery time, 0: autopilot does not provide remaining battery time estimate
         uint8_t  charge_state;// 	MAV_BATTERY_CHARGE_STATE	State for extent of discharge, provided by autopilot for warning or external reactions
-        uint16_t[4]  voltages_ext;//mV		Battery voltages for cells 11 to 14. 
+        vector <uint16_t> voltages_ext;//mV		Battery voltages for cells 11 to 14. 
         uint8_t  mode;//MAV_BATTERY_MODE	Battery mode. Default (0) is that battery mode reporting is not supported or battery is in normal-use mode.
         uint32_t  fault_bitmask;//MAV_BATTERY_FAULT	Fault/health indications. 
 
@@ -116,7 +120,7 @@ struct  MavData
     {
         uint64_t time_usec;//us	Timestamp (since system boot).
         uint32_t active;//Active outputs
-        float[32]	 actuator;//Servo / motor output array values.
+        vector <float>actuator;//Servo / motor output array values.
 
     } raw;
 
@@ -135,7 +139,7 @@ struct  MavData
         float x;//	m	Local X position of this position in the local coordinate frame (NED)
         float y;//m	Local Y position of this position in the local coordinate frame (NED)
         float z;//m	Local Z position of this position in the local coordinate frame (NED: positive "down")
-        float[4] q;//Quaternion indicating world-to-surface-normal and heading transformation of the takeoff position. 
+        vector<float> q;//Quaternion indicating world-to-surface-normal and heading transformation of the takeoff position. 
         float approach_x;//m	Local X position of the end of the approach vector.
         float approach_y;//m	Local Y position of the end of the approach vector. 
         float approach_z;//m	Local Z position of the end of the approach vector. 
@@ -203,15 +207,15 @@ struct  MavData
         float x;//m		X Position
         float y;//m		Y Position
         float z;//m		Z Position
-        float[4] q;//Quaternion components, w, x, y, z (1 0 0 0 is the null-rotation)
+        vector<float> q;//Quaternion components, w, x, y, z (1 0 0 0 is the null-rotation)
         float vx;//m/s		X linear speed
         float vy;//m/s		Y linear speed
         float vz;//m/s		Z linear speed
         float rollspeed;//rad/s		Roll angular speed
         float pitchspeed;//rad/s		Pitch angular speed
         float yawspeed;//rad/s		Yaw angular speed
-        float[21]	 pose_covariance;//Row-major representation of a 6x6 pose cross-covariance matrix upper right triangle (states: x, y, z, roll, pitch, yaw;
-        float[21]	 velocity_covariance;//Row-major representation of a 6x6 velocity cross-covariance matrix upper right triangle (states: vx, vy, vz, rollspeed, pitchspeed, yawspeed; 
+        vector<float>	 pose_covariance;//Row-major representation of a 6x6 pose cross-covariance matrix upper right triangle (states: x, y, z, roll, pitch, yaw;
+        vector<float>	 velocity_covariance;//Row-major representation of a 6x6 velocity cross-covariance matrix upper right triangle (states: vx, vy, vz, rollspeed, pitchspeed, yawspeed; 
         uint8_t	 reset_counter;//Estimate reset counter. 
         uint8_t	 estimator_type;//Type of estimator that is providing the odometry.
         uint8_t	 quality;//Optional odometry quality metric as a percentage.
@@ -222,13 +226,12 @@ struct  MavData
 
       struct STATUS_TEXT
     {
+       uint8_t severity;
+       vector<char> text;
+       uint16_t id;
+       uint8_t chunk_seq;
 
     } stat_text;
-
-
-    mavlink_heartbeat_t heartbeat;    
-    mavlink_sys_status_t sys;
-    mavlink_mission_item_t mis;
 };
 
 
@@ -322,41 +325,286 @@ public:
         {
             if (mavlink_parse_char(MAVLINK_COMM_0, buffer[i], &msg, &status)) 
             {
+                   
                     if (msg.msgid == MAVLINK_MSG_ID_GLOBAL_POSITION_INT) 
                     {
+                     
                         mavlink_global_position_int_t pos;
                         mavlink_msg_global_position_int_decode(&msg, &pos);
+                        MsgData.position.time_boot_ms = pos.time_boot_ms;
                         MsgData.position.lat = pos.lat;
                         MsgData.position.lon = pos.lon;
-                        MsgData.pos = pos;
-                    }
-                
-                    if (msg.msgid == MAVLINK_MSG_ID_HEARTBEAT) 
-                    {
-                        mavlink_heartbeat_t heartbeat;
-                        mavlink_msg_heartbeat_decode(&msg, &heartbeat);
-                        MsgData.heartbeat = heartbeat;
+                        MsgData.position.alt = pos.alt;
+                        MsgData.position.relative_alt = pos.relative_alt;
+                        MsgData.position.vx = pos.vx;
+                        MsgData.position.vy = pos.vy;
+                        MsgData.position.vz = pos.vz;
+                        MsgData.position.hdg = pos.hdg;
                     }
 
                     if (msg.msgid == MAVLINK_MSG_ID_ATTITUDE) 
                     {
-                         mavlink_attitude_t att;
-                        mavlink_msg_attitude_decode(&msg, &att);
-                        MsgData.att = att;
-                    }    
+                       
+                        mavlink_attitude_t attitude;
+                        mavlink_msg_attitude_decode(&msg, &attitude);
+                        MsgData.att.time_boot_ms = attitude.time_boot_ms;
+                        MsgData.att.roll = attitude.roll;
+                        MsgData.att.pitch = attitude.pitch;
+                        MsgData.att.yaw = attitude.yaw;
+                        MsgData.att.rollspeed = attitude.rollspeed;
+                        MsgData.att.pitchspeed = attitude.pitchspeed;
+                        MsgData.att.yawspeed = attitude.yawspeed;
+                    }
+                
 
-                    if (msg.msgid == MAVLINK_MSG_ID_SYS_STATUS)
+                    if (msg.msgid == MAVLINK_MSG_ID_ALTITUDE) 
                     {
-                        mavlink_sys_status_t sys;
-                        mavlink_msg_sys_status_decode(&msg, &sys);
-                        MsgData.sys = sys;
-                    }       
-                    if (msg.msgid = MAVLINK_MSG_ID_MISSION_ITEM)
+                         
+                        mavlink_altitude_t altitude_msg;
+                        mavlink_msg_altitude_decode(&msg, &altitude_msg);
+                        MsgData.alt.time_usec = altitude_msg.time_usec;
+                        MsgData.alt.altitude_monotonic = altitude_msg.altitude_monotonic;
+                        MsgData.alt.altitude_amsl = altitude_msg.altitude_amsl;
+                        MsgData.alt.altitude_local = altitude_msg.altitude_local;
+                        MsgData.alt.altitude_relative = altitude_msg.altitude_relative;
+                        MsgData.alt.altitude_terrain = altitude_msg.altitude_terrain;
+                        MsgData.alt.bottom_clearance = altitude_msg.bottom_clearance;
+                    }
+
+                    if (msg.msgid == MAVLINK_MSG_ID_BATTERY_STATUS) 
                     {
-                        mavlink_mission_item_t mis;
-                        mavlink_msg_mission_item_decode(&msg, &mis);
-                        MsgData.mis = mis;
-                    }            
+                        
+                        mavlink_battery_status_t battery_status_msg;
+                        mavlink_msg_battery_status_decode(&msg, &battery_status_msg);
+                        MsgData.battery.id = battery_status_msg.id;
+                        MsgData.battery.battery_function = battery_status_msg.battery_function;
+                        MsgData.battery.type = battery_status_msg.type;
+                        MsgData.battery.temperature = battery_status_msg.temperature;
+                        for (int i = 0; i < 10; ++i) {
+                            MsgData.battery.voltages.push_back(battery_status_msg.voltages[i]);
+                        }
+                        MsgData.battery.current_battery = battery_status_msg.current_battery;
+                        MsgData.battery.current_consumed = battery_status_msg.current_consumed;
+                        MsgData.battery.energy_consumed = battery_status_msg.energy_consumed;
+                        MsgData.battery.battery_remaining = battery_status_msg.battery_remaining;
+                        MsgData.battery.time_remaining = battery_status_msg.time_remaining;
+                        MsgData.battery.charge_state = battery_status_msg.charge_state;
+
+                            for (int i = 0; i < 4; ++i) {
+                            MsgData.battery.voltages_ext.push_back(battery_status_msg.voltages_ext[i]);
+                        }
+                
+                        MsgData.battery.mode = battery_status_msg.mode;
+                        MsgData.battery.fault_bitmask = battery_status_msg.fault_bitmask;
+                    }
+
+                    if (msg.msgid == MAVLINK_MSG_ID_GPS_RAW_INT) 
+                    {
+                     
+                        mavlink_gps_raw_int_t gps_msg;
+                        mavlink_msg_gps_raw_int_decode(&msg, &gps_msg);
+                        MsgData.gps.time_usec = gps_msg.time_usec;
+                        MsgData.gps.fix_type = gps_msg.fix_type;
+                        MsgData.gps.lat = gps_msg.lat;
+                        MsgData.gps.lon = gps_msg.lon;
+                        MsgData.gps.alt = gps_msg.alt;
+                        MsgData.gps.eph = gps_msg.eph;
+                        MsgData.gps.epv = gps_msg.epv;
+                        MsgData.gps.vel = gps_msg.vel;
+                        MsgData.gps.cog = gps_msg.cog;
+                        MsgData.gps.satellites_visible = gps_msg.satellites_visible;
+                        MsgData.gps.alt_ellipsoid = gps_msg.alt_ellipsoid;
+                        MsgData.gps.h_acc = gps_msg.h_acc;
+                        MsgData.gps.v_acc = gps_msg.v_acc;
+                        MsgData.gps.vel_acc = gps_msg.vel_acc;
+                        MsgData.gps.hdg_acc = gps_msg.hdg_acc;
+                        MsgData.gps.yaw = gps_msg.yaw;
+                    }
+
+                    if (msg.msgid == MAVLINK_MSG_ID_LOCAL_POSITION_NED) 
+                    {
+                          
+                        mavlink_local_position_ned_t local_pos_msg;
+                        mavlink_msg_local_position_ned_decode(&msg, &local_pos_msg);
+                        MsgData.local_pos.time_boot_ms = local_pos_msg.time_boot_ms;
+                        MsgData.local_pos.x = local_pos_msg.x;
+                        MsgData.local_pos.y = local_pos_msg.y;
+                        MsgData.local_pos.z = local_pos_msg.z;
+                        MsgData.local_pos.vx = local_pos_msg.vx;
+                        MsgData.local_pos.vy = local_pos_msg.vy;
+                        MsgData.local_pos.vz = local_pos_msg.vz;
+                    }
+
+              
+                    if (msg.msgid == MAVLINK_MSG_ID_VFR_HUD) 
+                    {
+                         
+                        mavlink_vfr_hud_t vfr_msg;
+                        mavlink_msg_vfr_hud_decode(&msg, &vfr_msg);
+                        MsgData.vfr.airspeed = vfr_msg.airspeed;
+                        MsgData.vfr.groundspeed = vfr_msg.groundspeed;
+                        MsgData.vfr.heading = vfr_msg.heading;
+                        MsgData.vfr.throttle = vfr_msg.throttle;
+                        MsgData.vfr.alt = vfr_msg.alt;
+                        MsgData.vfr.climb = vfr_msg.climb;
+                    }
+
+              
+                    if (msg.msgid == MAVLINK_MSG_ID_SERVO_OUTPUT_RAW) 
+                    {
+                          
+                        mavlink_servo_output_raw_t servo_raw_msg;
+                        mavlink_msg_servo_output_raw_decode(&msg, &servo_raw_msg);
+                        MsgData.raw.time_usec = servo_raw_msg.time_usec;
+                        // MsgData.raw.active = servo_raw_msg.active;
+                        // for (int i = 0; i < 32; ++i) {
+
+                        //     MsgData.raw.actuator.push_back(servo_raw_msg.actuator[i]);
+                        // }
+                    }
+
+                    if (msg.msgid == MAVLINK_MSG_ID_EXTENDED_SYS_STATE) 
+                    {
+                        mavlink_extended_sys_state_t ext_sys_msg;
+                        mavlink_msg_extended_sys_state_decode(&msg, &ext_sys_msg);
+                        MsgData.ext_sys.vtol_state = ext_sys_msg.vtol_state;
+                        MsgData.ext_sys.landed_state = ext_sys_msg.landed_state;
+                    }
+
+    
+                    if (msg.msgid == MAVLINK_MSG_ID_HOME_POSITION) 
+                    {
+                         
+                        mavlink_home_position_t home_pos_msg;
+                        mavlink_msg_home_position_decode(&msg, &home_pos_msg);
+                        MsgData.home_pos.latitude = home_pos_msg.latitude;
+                        MsgData.home_pos.longitude = home_pos_msg.longitude;
+                        MsgData.home_pos.altitude = home_pos_msg.altitude;
+                        MsgData.home_pos.x = home_pos_msg.x;
+                        MsgData.home_pos.y = home_pos_msg.y;
+                        MsgData.home_pos.z = home_pos_msg.z;
+                        for (int i = 0; i < 4; ++i) {
+                            MsgData.home_pos.q.push_back( home_pos_msg.q[i]);
+                        }
+                        MsgData.home_pos.approach_x = home_pos_msg.approach_x;
+                        MsgData.home_pos.approach_y = home_pos_msg.approach_y;
+                        MsgData.home_pos.approach_z = home_pos_msg.approach_z;
+                        MsgData.home_pos.time_usec = home_pos_msg.time_usec;
+                    }
+
+                   
+                    if (msg.msgid == MAVLINK_MSG_ID_HEARTBEAT) 
+                    {
+                       
+                        mavlink_heartbeat_t heartbeat_msg;
+                        mavlink_msg_heartbeat_decode(&msg, &heartbeat_msg);
+                        MsgData.heartbeat.type = heartbeat_msg.type;
+                        MsgData.heartbeat.autopilot = heartbeat_msg.autopilot;
+                        MsgData.heartbeat.base_mode = heartbeat_msg.base_mode;
+                        MsgData.heartbeat.custom_mode = heartbeat_msg.custom_mode;
+                        MsgData.heartbeat.system_status = heartbeat_msg.system_status;
+                    }
+
+                    if (msg.msgid == MAVLINK_MSG_ID_SYS_STATUS) 
+                    {
+                       
+                        mavlink_sys_status_t sys_status_msg;
+                        mavlink_msg_sys_status_decode(&msg, &sys_status_msg);
+                        MsgData.sys.onboard_control_sensors_present = sys_status_msg.onboard_control_sensors_present;
+                        MsgData.sys.onboard_control_sensors_enabled = sys_status_msg.onboard_control_sensors_enabled;
+                        MsgData.sys.onboard_control_sensors_health = sys_status_msg.onboard_control_sensors_health;
+                        MsgData.sys.load = sys_status_msg.load;
+                        MsgData.sys.voltage_battery = sys_status_msg.voltage_battery;
+                        MsgData.sys.current_battery = sys_status_msg.current_battery;
+                        MsgData.sys.battery_remaining = sys_status_msg.battery_remaining;
+                        MsgData.sys.drop_rate_comm = sys_status_msg.drop_rate_comm;
+                        MsgData.sys.errors_comm = sys_status_msg.errors_comm;
+                        MsgData.sys.errors_count1 = sys_status_msg.errors_count1;
+                        MsgData.sys.errors_count2 = sys_status_msg.errors_count2;
+                        MsgData.sys.errors_count3 = sys_status_msg.errors_count3;
+                        MsgData.sys.errors_count4 = sys_status_msg.errors_count4;
+                        MsgData.sys.onboard_control_sensors_present_extended = sys_status_msg.onboard_control_sensors_present_extended;
+                        MsgData.sys.onboard_control_sensors_enabled_extended = sys_status_msg.onboard_control_sensors_enabled_extended;
+                        MsgData.sys.onboard_control_sensors_health_extended = sys_status_msg.onboard_control_sensors_health_extended;
+                    }
+
+
+                    if (msg.msgid == MAVLINK_MSG_ID_SCALED_IMU) 
+                    {
+                      
+                        mavlink_scaled_imu_t imu_msg;
+                        mavlink_msg_scaled_imu_decode(&msg, &imu_msg);
+                        MsgData.imu.time_boot_ms = imu_msg.time_boot_ms;
+                        MsgData.imu.xacc = imu_msg.xacc;
+                        MsgData.imu.yacc = imu_msg.yacc;
+                        MsgData.imu.zacc = imu_msg.zacc;
+                        MsgData.imu.xgyro = imu_msg.xgyro;
+                        MsgData.imu.ygyro = imu_msg.ygyro;
+                        MsgData.imu.zgyro = imu_msg.zgyro;
+                        MsgData.imu.xmag = imu_msg.xmag;
+                        MsgData.imu.ymag = imu_msg.ymag;
+                        MsgData.imu.zmag = imu_msg.zmag;
+                        MsgData.imu.temperature = imu_msg.temperature;
+                    }
+
+                 
+                    if (msg.msgid == MAVLINK_MSG_ID_ODOMETRY) 
+                    {
+                       
+                        mavlink_odometry_t odom_msg;
+                        mavlink_msg_odometry_decode(&msg, &odom_msg);
+                        MsgData.odometry.time_usec = odom_msg.time_usec;
+                        MsgData.odometry.frame_id = odom_msg.frame_id;
+                        MsgData.odometry.child_frame_id = odom_msg.child_frame_id;
+                        MsgData.odometry.x = odom_msg.x;
+                        MsgData.odometry.y = odom_msg.y;
+                        MsgData.odometry.z = odom_msg.z;
+                        
+                        for (int i=0;i<4;++i)
+                        {
+                            MsgData.odometry.q.push_back(odom_msg.q[i]);
+                        }
+                    
+                        
+                        MsgData.odometry.vx = odom_msg.vx;
+                        MsgData.odometry.vy = odom_msg.vy;
+                        MsgData.odometry.vz = odom_msg.vz;
+                        MsgData.odometry.rollspeed = odom_msg.rollspeed;
+                        MsgData.odometry.pitchspeed = odom_msg.pitchspeed;
+                        MsgData.odometry.yawspeed = odom_msg.yawspeed;
+                        
+                     for (int i=0;i<21;++i)
+                        {
+                            MsgData.odometry.pose_covariance.push_back(odom_msg.pose_covariance[i]);
+                        }
+                        for (int i=0;i<21;++i)
+                        {
+                            MsgData.odometry.velocity_covariance.push_back(odom_msg.velocity_covariance[i]);
+                        }
+                 
+                        
+                        MsgData.odometry.reset_counter = odom_msg.reset_counter;
+                        MsgData.odometry.estimator_type = odom_msg.estimator_type;
+                        MsgData.odometry.quality = odom_msg.quality;
+}                    
+
+                 
+                    if (msg.msgid == MAVLINK_MSG_ID_STATUSTEXT) 
+                    {
+                         
+                        mavlink_statustext_t status_text_msg;
+                        mavlink_msg_statustext_decode(&msg, &status_text_msg);
+                        MsgData.stat_text.severity = status_text_msg.severity;
+                        for (int i=0;i<50;++i)
+                        {
+                            MsgData.stat_text.text.push_back(MsgData.stat_text.text[i]);
+                        }
+                      
+                        MsgData.stat_text.text[sizeof(MsgData.stat_text.text) - 1] = '\0'; 
+                        MsgData.stat_text.id = status_text_msg.id;
+                        MsgData.stat_text.chunk_seq = status_text_msg.chunk_seq;
+                    }
+
                 
             }
         }
@@ -368,7 +616,7 @@ public:
 
     void PrintData()
     {
-        std::cout<< "Широта: " <<MsgData.position.lat/1e7<<", Долгота: "<<MsgData.position.lon/1e7<<std::endl;
+        // std::cout<< "Широта: " <<MsgData.position.lat/1e7<<", Долгота: "<<MsgData.position.lon/1e7<<std::endl;
     }
 
 };
