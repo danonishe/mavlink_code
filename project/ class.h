@@ -7,6 +7,7 @@
 #include <atomic>
 #include <functional>
 #include <vector> 
+#include <iomanip>
 #include </home/dana/mavlink/build/include/mavlink/common/mavlink.h>
 
 
@@ -278,7 +279,7 @@ public:
             return false;
         }
          running_ = true;
-        // Создаем поток, который будет выполнять MyMethod
+ 
         thread_ = std::thread(&MavlinkReceiver::ProcessData, this);
     
         return true;
@@ -328,7 +329,6 @@ public:
                    
                     if (msg.msgid == MAVLINK_MSG_ID_GLOBAL_POSITION_INT) 
                     {
-                     
                         mavlink_global_position_int_t pos;
                         mavlink_msg_global_position_int_decode(&msg, &pos);
                         MsgData.position.time_boot_ms = pos.time_boot_ms;
@@ -503,6 +503,7 @@ public:
                         MsgData.heartbeat.base_mode = heartbeat_msg.base_mode;
                         MsgData.heartbeat.custom_mode = heartbeat_msg.custom_mode;
                         MsgData.heartbeat.system_status = heartbeat_msg.system_status;
+        
                     }
 
                     if (msg.msgid == MAVLINK_MSG_ID_SYS_STATUS) 
@@ -605,6 +606,17 @@ public:
                         MsgData.stat_text.chunk_seq = status_text_msg.chunk_seq;
                     }
 
+                     if (msg.msgid == MAVLINK_MSG_ID_COMMAND_ACK) {
+                            cout<<"ack"<<endl;
+                
+                            mavlink_command_ack_t ack;
+                            mavlink_msg_command_ack_decode(&msg, &ack);
+
+                        cout << "Команда: " << ack.command << ", Результат: " << ack.result << endl;
+
+
+                        }
+
                 
             }
         }
@@ -616,8 +628,75 @@ public:
 
     void PrintData()
     {
-        // std::cout<< "Широта: " <<MsgData.position.lat/1e7<<", Долгота: "<<MsgData.position.lon/1e7<<std::endl;
+        std::cout<< "Широта: " <<MsgData.position.lat/1e7<<", Долгота: "<<MsgData.position.lon/1e7<<std::endl;
     }
+
+
+    
+    void takeoff() {
+    sleep(2);
+    bool fl = true;
+        uint8_t buffer[BUFFER_LENGTH];
+           
+      while(true)
+      {
+        ssize_t num_bytes = recv(udp_socket_, buffer, sizeof(buffer), 0);
+        if (num_bytes <= 0) 
+        {
+            std::cerr << "Ошибка приема данных\n";
+            return;
+        }
+
+        mavlink_message_t msg, msg1;
+        mavlink_status_t status;
+    
+        for (ssize_t i = 0; i < num_bytes; ++i) 
+        {
+            
+            if (mavlink_parse_char(MAVLINK_COMM_0, buffer[i], &msg1, &status)&&fl) 
+            {
+          
+       
+                float lat = MsgData.position.lat/1e7;
+                float lon = MsgData.position.lon/1e7;
+
+                        printf(
+                "Received message %d from %d/%d\n lon=%f lat=%f \n",
+                msg1.msgid, msg1.sysid, msg1.compid, lon,lat );
+
+                mavlink_msg_command_int_pack(42,MAV_COMP_ID_MISSIONPLANNER,&msg, msg1.sysid, msg1.compid, MAV_FRAME_GLOBAL_TERRAIN_ALT, 
+                MAV_CMD_NAV_TAKEOFF,0, 0, 0, 0, 0, 0, MsgData.position.lat, MsgData.position.lon, 10);
+
+                // mavlink_msg_command_long_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg, msg1.sysid, msg1.compid,MAV_CMD_NAV_TAKEOFF, 0,0 ,0,0,0,lat, lon, 10.0);
+
+
+                uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+                
+                uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
+                ssize_t bytes_sent = sendto(udp_socket_, buf, len, 0, (struct sockaddr*)&sockaddr_, sizeof(sockaddr_));
+                
+                for (int i =0;i<MAVLINK_MAX_PACKET_LEN;++i)
+                {
+                         std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(buffer[i]) << " ";
+                }
+                cout<<endl;
+                if (bytes_sent != len) 
+                {
+                    std::cerr << "Ошибка отправки сообщения MAVLink\n";
+                }
+                cout<<"takeoff"<<endl;
+               fl=false;
+                }
+
+
+                  
+            }
+      }
+}
+
+
+ 
+        
 
 };
 

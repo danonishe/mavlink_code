@@ -10,10 +10,11 @@ int main()
         std::cerr << "Ошибка подключения к порту\n";
         return 1;
     }
-    
+    receiver.takeoff();
     while (true)
     {
-        receiver.PrintData();
+    
+        // receiver.PrintData();
     }
 
     return 0;
