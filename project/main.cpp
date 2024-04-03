@@ -1,6 +1,8 @@
 
 #include<iostream>
 #include " class.h"
+#include<string>
+#include<vector>
 
 int main(int argc, char* argv[])
 {
@@ -15,56 +17,58 @@ thread t([&](){mav.ProcessData();});
 
 this_thread::sleep_for(chrono::milliseconds(100));
 
-
+vector<string> commander;
 while (true){
 
-cout<<"Commands: \n 1 - takeoff \n 2 - land\n 3 - return to lunch\nEnter num: ";
-int a;
-cin>>a;
-cout<<endl;
-switch(a){
-    case 1:
+cout<<"Command: ";
+string str;
+getline(cin, str);
+
+commander.clear();
+
+ size_t pos = 0;
+  while ((pos = str.find(' ')) != string::npos) {
+    commander.push_back(str.substr(0, pos));
+    str.erase(0, pos+1);
+  }
+  if (!str.empty()&& str.find(' ')== string::npos)
+  {
+    commander.push_back(str);
+  }
+
+bool fl = 0;
+
+if (commander[0]=="/takeoff")
+{
+    if (commander.size()>1)
     {
-        if(!mav.takeoff(10))
-        {
-            cout<<"success takeoff\n";
-        }
-        else
-        {
-             cout<<"error takeoff\n";
-        }
-        break;
-    }
-    case 2:
+        (!mav.takeoff(stof(commander[1])))? cout<<"success takeoff\n": cout<<"error takeoff\n";
+    }else
     {
-         if(!mav.land())
-        {
-            cout<<"success land\n";
-        }
-        else
-        {
-             cout<<"error land\n";
-        }
-        break;
+        cout<<"Высота по умолчанию 10м"<<endl;
+        (!mav.takeoff(10.0))? cout<<"success takeoff\n": cout<<"error takeoff\n";
     }
-     case 3:
-    {
-         if(!mav.return_to_lunch())
-        {
-            cout<<"success return to lunch\n";
-        }
-        else
-        {
-             cout<<"error return to lunch\n";
-        }
-        break;
-    }
-     default: 
-        cout << "unknown command\n";
-        break;
-    }
-    cout<<endl;
+    fl=1;
 }
+
+
+if (commander[0]=="/land")
+{
+
+ (!mav.land())?cout<<"success land\n":cout<<"error land\n";
+ fl=1;
+}
+
+if (commander[0]=="/rtl")
+{
+    (!mav.return_to_lunch())?cout<<"success return to lunch\n":cout<<"error return to lunch\n";
+    fl=1;
+}
+if (!fl)
+{
+    cout<<"unknown command"<<endl;
+}
+ }
 
 t.join(); 
  

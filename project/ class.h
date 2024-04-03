@@ -18,6 +18,8 @@
 #include </home/dana/mavlink/build/include/mavlink/common/mavlink.h>
 #include<chrono>
 #include <mutex>
+#include <iomanip>
+
 
 using namespace std;
 
@@ -615,7 +617,29 @@ void ProcessData()
             {
                 mavlink_command_ack_t ack;
                 mavlink_msg_command_ack_decode(&msg, &ack);
-                // cout << "Команда: " << ack.command << ", Результат: " << ack.result << endl;
+                // const char* result_str = "";
+                //             switch (ack.result) {
+                // case MAV_RESULT_ACCEPTED:
+                //     result_str = "Принято и выполнено успешно";
+                //     break;
+                // case MAV_RESULT_TEMPORARILY_REJECTED:
+                //     result_str = "Временно отклонено";
+                //     break;
+                // case MAV_RESULT_DENIED:
+                //     result_str = "Отклонено";
+                //     break;
+                // case MAV_RESULT_UNSUPPORTED:
+                //     result_str = "Не поддерживается";
+                //     break;
+                // case MAV_RESULT_FAILED:
+                //     result_str = "Не удалось";
+                //     break;
+                // default:
+                //     result_str = "Неизвестный результат";
+                //     break;
+                // }
+
+                // cout << "Команда: " << ack.command << ", Результат: " << result_str << endl;
                 break;
             }
             }
@@ -669,10 +693,28 @@ void send_heartbeat( )
 int takeoff(float h)
 {
     mtx.lock();
-        mavlink_message_t msg2;
+       
 
-    mavlink_msg_command_long_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg2, sysid, compid,MAV_CMD_COMPONENT_ARM_DISARM,
-     1,0 ,0,0,0,0,0, 0);
+    mavlink_message_t msg0;
+    float lat = MsgData.position.lat/1e7;
+    float lon = MsgData.position.lon/1e7;
+    h+=MsgData.position.alt/1000;
+
+    
+
+    mavlink_msg_command_long_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg0, sysid, compid,MAV_CMD_NAV_TAKEOFF,0,
+    -1.0 ,0.0,0.0,NAN,NAN,NAN, h);
+    uint8_t buf0[MAVLINK_MAX_PACKET_LEN];
+    uint16_t len0 = mavlink_msg_to_send_buffer(buf0, &msg0);
+    ssize_t bytes_sent0 = sendto(socket_fd, buf0, len0, 0, (struct sockaddr*)&src_addr, src_addr_len);
+      if (bytes_sent0 != len0) {
+        return -1;
+    }   
+
+ mavlink_message_t msg2;
+
+    mavlink_msg_command_long_pack(1, MAV_COMP_ID_MISSIONPLANNER, &msg2, sysid, compid,MAV_CMD_COMPONENT_ARM_DISARM, 0.0,
+    1.0 ,0.0,0.0,0.0,0.0,0.0, 0.0);
 
     uint8_t buf2[MAVLINK_MAX_PACKET_LEN];
     uint16_t len2 = mavlink_msg_to_send_buffer(buf2, &msg2);
@@ -681,20 +723,22 @@ int takeoff(float h)
        return -2;
     } 
 
-    mavlink_message_t msg0;
-    float lat = MsgData.position.lat/1e7;
-    float lon = MsgData.position.lon/1e7;
-    mavlink_msg_command_long_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg0, sysid, compid,MAV_CMD_NAV_TAKEOFF,
-     0,0 ,0,0,0,MsgData.position.lat,MsgData.position.lon, h);
-    uint8_t buf0[MAVLINK_MAX_PACKET_LEN];
-    uint16_t len0 = mavlink_msg_to_send_buffer(buf0, &msg0);
-    ssize_t bytes_sent0 = sendto(socket_fd, buf0, len0, 0, (struct sockaddr*)&src_addr, src_addr_len);
-      if (bytes_sent0 != len0) {
-        return -1;
-    } 
+   // printBuffer(buf0, MAVLINK_MAX_PACKET_LEN);
+        mtx.unlock();
+
+
     return 0;
-    mtx.unlock();
+
 }
+
+
+void printBuffer(const uint8_t* buffer, uint16_t length) {
+    for (uint16_t i = 0; i < length; ++i) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(buffer[i]) << " ";
+    }
+    std::cout << std::endl;
+}
+
 
 int land()
 {
@@ -704,7 +748,7 @@ int land()
     float lat = MsgData.position.lat/1e7;
     float lon = MsgData.position.lon/1e7;
     float h = MsgData.position.relative_alt/1000;
-    mavlink_msg_command_long_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid,MAV_CMD_NAV_LAND,
+    mavlink_msg_command_long_pack(1, MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid,MAV_CMD_NAV_LAND,
      0,0 ,0,0,0,MsgData.position.lat,MsgData.position.lon, h);
 
     uint8_t buf[MAVLINK_MAX_PACKET_LEN];
