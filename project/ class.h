@@ -19,9 +19,14 @@
 #include<chrono>
 #include <mutex>
 #include <iomanip>
-
+#include <string>
+#include <nlohmann/json.hpp>
+#include <fstream>
 
 using namespace std;
+using json = nlohmann::json;
+
+
 
 struct  MavData 
 {
@@ -246,6 +251,20 @@ struct  MavData
 };
 
 
+struct Item
+{
+   
+    float altitude;
+    int altitudeMode;
+    bool autoContinue;
+    int command;
+    int doJumpId;
+    int frame;
+    string type;
+    vector <float> params;
+
+};
+
 
 class MavlinkReceiver 
 {
@@ -257,7 +276,10 @@ private:
     mutex mtx;
     int sysid=0;
     int compid=0;
+    json j;
 
+
+    bool fl = 0;
 
     struct sockaddr_in src_addr = {};
      socklen_t src_addr_len;
@@ -617,32 +639,50 @@ void ProcessData()
             {
                 mavlink_command_ack_t ack;
                 mavlink_msg_command_ack_decode(&msg, &ack);
-                // const char* result_str = "";
-                //             switch (ack.result) {
-                // case MAV_RESULT_ACCEPTED:
-                //     result_str = "Принято и выполнено успешно";
-                //     break;
-                // case MAV_RESULT_TEMPORARILY_REJECTED:
-                //     result_str = "Временно отклонено";
-                //     break;
-                // case MAV_RESULT_DENIED:
-                //     result_str = "Отклонено";
-                //     break;
-                // case MAV_RESULT_UNSUPPORTED:
-                //     result_str = "Не поддерживается";
-                //     break;
-                // case MAV_RESULT_FAILED:
-                //     result_str = "Не удалось";
-                //     break;
-                // default:
-                //     result_str = "Неизвестный результат";
-                //     break;
-                // }
+                const char* result_str = "";
+                            switch (ack.result) {
+                case MAV_RESULT_ACCEPTED:
+                    result_str = "Принято и выполнено успешно";
+                    break;
+                case MAV_RESULT_TEMPORARILY_REJECTED:
+                    result_str = "Временно отклонено";
+                    break;
+                case MAV_RESULT_DENIED:
+                    result_str = "Отклонено";
+                    break;
+                case MAV_RESULT_UNSUPPORTED:
+                    result_str = "Не поддерживается";
+                    break;
+                case MAV_RESULT_FAILED:
+                    result_str = "Не удалось";
+                    break;
+                default:
+                    result_str = "Неизвестный результат";
+                    break;
+                }
 
-                // cout << "Команда: " << ack.command << ", Результат: " << result_str << endl;
+                 cout << "Команда: " << ack.command << ", Результат: " << result_str << endl;
+                break;
+            }
+            case MAVLINK_MSG_ID_MISSION_REQUEST_INT:
+            {
+                fl = 1;
+            mavlink_mission_request_int_t mission_request;
+            mavlink_msg_mission_request_int_decode(&msg, &mission_request);
+            cout<<"Пришло сообщение"<<endl;
+
+                break;
+            }
+            case MAVLINK_MSG_ID_MISSION_ACK:
+            {
+                mavlink_mission_ack_t ack;
+                mavlink_msg_mission_ack_decode(&msg, &ack);
+                cout<<"mission ack"<<endl;
                 break;
             }
             }
+
+            
         }
     }
 
@@ -713,7 +753,7 @@ int takeoff(float h)
 
  mavlink_message_t msg2;
 
-    mavlink_msg_command_long_pack(1, MAV_COMP_ID_MISSIONPLANNER, &msg2, sysid, compid,MAV_CMD_COMPONENT_ARM_DISARM, 0.0,
+    mavlink_msg_command_long_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg2, sysid, compid,MAV_CMD_COMPONENT_ARM_DISARM, 0.0,
     1.0 ,0.0,0.0,0.0,0.0,0.0, 0.0);
 
     uint8_t buf2[MAVLINK_MAX_PACKET_LEN];
@@ -781,6 +821,66 @@ int return_to_lunch()
 
 
 }
+ int change_speed(float speed)
+{
+
+    mtx.lock();
+    mavlink_message_t msg;
+
+    mavlink_msg_command_long_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid,MAV_CMD_DO_CHANGE_SPEED,0,
+    0 ,speed,-1,0,0, 0, 0);
+    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+    uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
+    ssize_t bytes_sent1 = sendto(socket_fd, buf, len, 0, (struct sockaddr*)&src_addr, src_addr_len);
+    mtx.unlock();
+      if (bytes_sent1 != len) {
+        return -1;
+    }
+    return 0;
+
+}
+
+
+
+
+int parse_mission_json(string s)
+{
+
+    std::ifstream ifs("../mission_protocols/"+s);
+    j = json::parse(ifs);
+    ifs.close();
+  
+    return 0;
+}
+
+int upload_mission()
+{
+
+
+    mtx.lock();
+    mavlink_message_t msg;
+
+    int count = j["mission"]["items"].size();
+    mavlink_msg_mission_count_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid,  count ,1,1);
+    mtx.unlock();
+
+    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+    uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
+    ssize_t bytes_sent = sendto(socket_fd, buf, len, 0, (struct sockaddr*)&src_addr, src_addr_len);
  
+
+
+      if (bytes_sent != len) {
+        cout<<"error send"<<endl;
+        return -1;
+      }
+    
+    cout<<"success send"<<endl;
+
+    
+    return 0;
+}
+
+
 };
 
