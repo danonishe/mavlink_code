@@ -98,6 +98,17 @@ if (commander[0]=="/upload")
     (!mav.upload_mission())?cout<<"success upload_mission\n":cout<<"error upload_mission\n";
     fl=1;
 }
+if (commander[0]=="/download")
+{
+    (!mav.download_mission())?cout<<"success download_mission\n":cout<<"error download_mission\n";
+    fl=1;
+}
+
+if (commander[0]=="/set")
+{
+    (!mav.set_mission())?cout<<"success set_mission\n":cout<<"error set_mission\n";
+    fl=1;
+}
 
 if (!fl)
 {
