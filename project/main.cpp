@@ -106,7 +106,41 @@ if (commander[0]=="/download")
 
 if (commander[0]=="/set")
 {
-    (!mav.set_mission())?cout<<"success set_mission\n":cout<<"error set_mission\n";
+    if (commander.size()>1)
+    {
+        (!mav.set_mission(stoi(commander[1])))? cout<<"success set_mission\n": cout<<"error set_mission\n";
+    }else
+    {
+        cout<<"нет number"<<endl;
+    }
+
+    fl=1;
+}
+
+if (commander[0]=="/pause")
+{
+    if (commander.size()>1)
+    {
+        (!mav.pause_mission(stoi(commander[1])))? cout<<"success pause mission\n": cout<<"error pause mission \n";
+    }else
+    {
+        cout<<"нет number"<<endl;
+    }
+
+    fl=1;
+}
+
+
+if (commander[0]=="/start")
+{
+     (!mav.start_mission())?cout<<"success start mission\n":cout<<"error start mission\n";
+
+    fl=1;
+}
+
+if (commander[0]=="/clear")
+{
+    (!mav.clear_mission())?cout<<"success clear\n":cout<<"error clear\n";
     fl=1;
 }
 

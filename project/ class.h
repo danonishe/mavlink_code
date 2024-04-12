@@ -384,7 +384,7 @@ void ProcessData()
                 MsgData.heartbeat.base_mode = heartbeat_msg.base_mode;
                 MsgData.heartbeat.custom_mode = heartbeat_msg.custom_mode;
                 MsgData.heartbeat.system_status = heartbeat_msg.system_status;
-              
+
                 // printf("Got heartbeat from autopilot\n");
 
                 break;
@@ -625,11 +625,14 @@ void ProcessData()
                 mavlink_statustext_t status_text_msg;
                 mavlink_msg_statustext_decode(&msg, &status_text_msg);
                 MsgData.stat_text.severity = status_text_msg.severity;
+                cout<<status_text_msg.severity<<endl;
                 for (int i=0;i<50;++i)
                 {
-                    MsgData.stat_text.text.push_back(MsgData.stat_text.text[i]);
+                   
+                    MsgData.stat_text.text.push_back(status_text_msg.text[i]);
+                     cout<<MsgData.stat_text.text[i];
                 }
-                
+                cout<<endl;
                 MsgData.stat_text.text[sizeof(MsgData.stat_text.text) - 1] = '\0'; 
                 MsgData.stat_text.id = status_text_msg.id;
                 MsgData.stat_text.chunk_seq = status_text_msg.chunk_seq;
@@ -680,14 +683,6 @@ void ProcessData()
 
 void send_heartbeat( )
 {
-    // // Whenever a second has passed, we send a heartbeat.
-    // static time_t last_time = 0;
-    // time_t current_time = time(NULL);
-    // if (current_time - last_time >= 1) {
-        //
-    //     last_time = current_time;
-    // }
-
         mavlink_message_t message;
         const uint8_t system_id = 42;
         const uint8_t base_mode = 0;
@@ -703,14 +698,7 @@ void send_heartbeat( )
             custom_mode,
             MAV_STATE_STANDBY);
 
-        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-        const int len = mavlink_msg_to_send_buffer(buffer, &message);
-
-        int ret = sendto(socket_fd, buffer, len, 0, (const struct sockaddr*)&src_addr, src_addr_len);
-        if (ret != len) {
-            printf("heatbeat sendto error: %s\n", strerror(errno));
-        } 
-          // else {printf("Sent heartbeat\n");}
+        if (send_message(&message))  printf("heatbeat sendto error: %s\n", strerror(errno));
 
 }
 
@@ -718,40 +706,23 @@ void send_heartbeat( )
 int takeoff(float h)
 {
     mtx.lock();
-       
 
     mavlink_message_t msg0;
     float lat = MsgData.position.lat/1e7;
     float lon = MsgData.position.lon/1e7;
     h+=MsgData.position.alt/1000;
 
-    
-
     mavlink_msg_command_long_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg0, sysid, compid,MAV_CMD_NAV_TAKEOFF,0,
     -1.0 ,0.0,0.0,NAN,NAN,NAN, h);
-    uint8_t buf0[MAVLINK_MAX_PACKET_LEN];
-    uint16_t len0 = mavlink_msg_to_send_buffer(buf0, &msg0);
-    ssize_t bytes_sent0 = sendto(socket_fd, buf0, len0, 0, (struct sockaddr*)&src_addr, src_addr_len);
-      if (bytes_sent0 != len0) {
-        return -1;
-    }   
+    if (send_message(&msg0)) return -1;
 
- mavlink_message_t msg2;
-
+    mavlink_message_t msg2;
     mavlink_msg_command_long_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg2, sysid, compid,MAV_CMD_COMPONENT_ARM_DISARM, 0.0,
     1.0 ,0.0,0.0,0.0,0.0,0.0, 0.0);
-
-    uint8_t buf2[MAVLINK_MAX_PACKET_LEN];
-    uint16_t len2 = mavlink_msg_to_send_buffer(buf2, &msg2);
-    ssize_t bytes_sent2 = sendto(socket_fd, buf2, len2, 0, (struct sockaddr*)&src_addr, src_addr_len);
-      if (bytes_sent2 != len2) {
-       return -2;
-    } 
+    if (send_message(&msg2)) return -2;
 
    // printBuffer(buf0, MAVLINK_MAX_PACKET_LEN);
         mtx.unlock();
-
-
     return 0;
 
 }
@@ -775,15 +746,7 @@ int land()
     float h = MsgData.position.relative_alt/1000;
     mavlink_msg_command_long_pack(1, MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid,MAV_CMD_NAV_LAND,
      0,0 ,0,0,0,MsgData.position.lat,MsgData.position.lon, h);
-
-    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
-    uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-    ssize_t bytes_sent = sendto(socket_fd, buf, len, 0, (struct sockaddr*)&src_addr, src_addr_len);
-    mtx.unlock();
-      if (bytes_sent != len) {
-        return -1;
-
-    } 
+     if (send_message(&msg)) return -1;
         return 0;
 }
 
@@ -792,20 +755,12 @@ int return_to_lunch()
 
     mtx.lock();
     mavlink_message_t msg1;
-
     mavlink_msg_command_long_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg1, sysid, compid,MAV_CMD_NAV_RETURN_TO_LAUNCH,
      0,0 ,0,0,0,0, 0, 0);
-    uint8_t buf1[MAVLINK_MAX_PACKET_LEN];
-    uint16_t len1 = mavlink_msg_to_send_buffer(buf1, &msg1);
-    ssize_t bytes_sent1 = sendto(socket_fd, buf1, len1, 0, (struct sockaddr*)&src_addr, src_addr_len);
-    mtx.unlock();
-      if (bytes_sent1 != len1) {
-        return -1;
-    }
+    if (send_message(&msg1)) return -1;
     return 0;
-
-
 }
+
  int change_speed(float speed)
 {
 
@@ -814,13 +769,7 @@ int return_to_lunch()
 
     mavlink_msg_command_long_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid,MAV_CMD_DO_CHANGE_SPEED,0,
     0 ,speed,-1,0,0, 0, 0);
-    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
-    uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-    ssize_t bytes_sent1 = sendto(socket_fd, buf, len, 0, (struct sockaddr*)&src_addr, src_addr_len);
-    mtx.unlock();
-      if (bytes_sent1 != len) {
-        return -1;
-    }
+    if (send_message(&msg)) return -1;
     return 0;
 
 }
@@ -834,13 +783,11 @@ int parse_mission_json(string s)
     std::ifstream ifs("../mission_protocols/"+s);
     j = json::parse(ifs);
     ifs.close();
-  
     return 0;
 }
 
 int upload_mission()
 {
-   
     mtx.lock();
     json items = j["mission"]["items"];
     int count = items.size();
@@ -852,16 +799,11 @@ int upload_mission()
         {
         mavlink_message_t msg;
         mavlink_msg_mission_count_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid,  count ,0,0);
-        uint8_t buf[MAVLINK_MAX_PACKET_LEN];
-        uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-        ssize_t bytes_sent = sendto(socket_fd, buf, len, 0, (struct sockaddr*)&src_addr, src_addr_len);
-        if (bytes_sent != len) {
-        cout<<"error send"<<endl;
-        return -1;
-      }
+        if (send_message(&msg)) return -1;
+
         for (int i =0;i<5&&!isSeq;++i)
         {
-        char buffer[2048]; 
+        char buffer[280]; 
         const int ret = recvfrom(
         socket_fd, buffer, sizeof(buffer), 0, (struct sockaddr*)(&src_addr), &src_addr_len);
         if (ret < 0) {printf("recvfrom error: %s\n", strerror(errno));} else if (ret == 0) {return -1;} 
@@ -900,10 +842,7 @@ int upload_mission()
             items[k]["autoContinue"],
             params[0],params[1],params[2],0,params[4],params[5],params[6],
             0);
-        uint8_t buf[MAVLINK_MAX_PACKET_LEN];
-        uint16_t len = mavlink_msg_to_send_buffer(buf, &msg_item);
-        ssize_t bytes_sent = sendto(socket_fd, buf, len, 0, (struct sockaddr*)&src_addr, src_addr_len);
-        if (bytes_sent != len) {cout<<"error send"<<endl;return -1;}
+        if (send_message(&msg_item)) return -1;
         cout<<"ушел"<<k+1<<endl;
     }
    
@@ -911,7 +850,7 @@ int upload_mission()
         fl = 0;
         while (!fl)
         {
-            char buffer[2048]; 
+            char buffer[280]; 
             const int ret = recvfrom(
             socket_fd, buffer, sizeof(buffer), 0, (struct sockaddr*)(&src_addr), &src_addr_len);
             if (ret < 0) {printf("recvfrom error: %s\n", strerror(errno));} else if (ret == 0) {return -1;} 
@@ -920,22 +859,25 @@ int upload_mission()
             mavlink_status_t status;
             for (int i = 0; i < ret; ++i) {
             if (mavlink_parse_char(MAVLINK_COMM_0, buffer[i], &msg, &status) == 1) {
-                if (msg.msgid = MAVLINK_MSG_ID_MISSION_ACK){
+                if (msg.msgid == MAVLINK_MSG_ID_MISSION_ACK){
  
                 mavlink_mission_ack_t ack;
                 mavlink_msg_mission_ack_decode(&msg, &ack);
                 
                                 const char* result_str = "";
-                            switch (ack.type) {
+                switch (ack.type) {
                 case MAV_RESULT_ACCEPTED:
                 {
                     result_str = "Принято и выполнено успешно";
                     fl = 1;
+                    break;
                 }
-                    break;
-                case MAV_RESULT_TEMPORARILY_REJECTED:
-                    result_str = "Временно отклонено";
-                    break;
+                case  MAV_MISSION_ERROR:
+                 result_str = "Ошибка";
+                 break;
+                // case MAV_RESULT_TEMPORARILY_REJECTED:
+                //     result_str = "Временно отклонено";
+                //     break;
                 case MAV_RESULT_DENIED:
                     result_str = "Отклонено";
                     break;
@@ -945,6 +887,7 @@ int upload_mission()
                 case MAV_RESULT_FAILED:
                     result_str = "Не удалось";
                     break;
+                 
                 default:
                     result_str = "Неизвестный результат";
                     break;
@@ -968,17 +911,18 @@ int download_mission()
 {
      mtx.lock();
 
-    mavlink_message_t msg;
-    mavlink_msg_mission_request_list_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, 0);
-    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
-    uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-    ssize_t bytes_sent = sendto(socket_fd, buf, len, 0, (struct sockaddr*)&src_addr, src_addr_len);
-    if (bytes_sent != len) {cout<<"error send"<<endl;return -1;}
     fl=0;
-    int count = 0 ;
+    int count = 0;
+
     while(!fl)
     {
-            char buffer[2048]; 
+    mavlink_message_t msg;
+    mavlink_msg_mission_request_list_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, 0);
+     if (send_message(&msg)) return -1;
+
+    for (int i=0;i<5&&!fl;++i)
+    {
+        char buffer[280]; 
             const int ret = recvfrom(
             socket_fd, buffer, sizeof(buffer), 0, (struct sockaddr*)(&src_addr), &src_addr_len);
             if (ret < 0) {printf("recvfrom error: %s\n", strerror(errno));} else if (ret == 0) {return -1;} 
@@ -987,16 +931,26 @@ int download_mission()
             mavlink_status_t status;
             for (int i = 0; i < ret; ++i) {
             if (mavlink_parse_char(MAVLINK_COMM_0, buffer[i], &msg, &status) == 1) {
-                if (msg.msgid = MAVLINK_MSG_ID_MISSION_COUNT){
+                if (msg.msgid == MAVLINK_MSG_ID_MISSION_COUNT){
                
                 mavlink_mission_count_t cnt;
                 mavlink_msg_mission_count_decode(&msg, &cnt);
                 count = cnt.count;
+                cout<<"mission count "<<count<<endl;
+                if (count == 7)
+                {
                     fl = 1;
-                cout<<"mission count"<<count<<endl;
+                    break;
+                }
+                 
+            
+                
             }
         }
         }
+    }
+
+            
     }
 
      mtx.unlock();
@@ -1004,22 +958,20 @@ int download_mission()
 }
 
 
-int set_mission()
+int set_mission(int a)
 {
     mtx.lock();
     mavlink_message_t msg;
-    mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, MAV_CMD_DO_SET_MISSION_CURRENT, 0,
-    -1, 0, 0, 0, 0, 0 , 0);
+    mavlink_msg_mission_set_current_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, a);
+    // mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, 224, 0,
+    // a, 1, 0, 0, 0, 0 , 0);
 
-     uint8_t buf[MAVLINK_MAX_PACKET_LEN];
-    uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-    ssize_t bytes_sent = sendto(socket_fd, buf, len, 0, (struct sockaddr*)&src_addr, src_addr_len);
-    if (bytes_sent != len) {cout<<"error send"<<endl;return -1;}
+    if (send_message(&msg)) return -1;
+    
     fl=0;
- 
     while(!fl)
     {
-            char buffer[2048]; 
+            char buffer[280]; 
             const int ret = recvfrom(
             socket_fd, buffer, sizeof(buffer), 0, (struct sockaddr*)(&src_addr), &src_addr_len);
             if (ret < 0) {printf("recvfrom error: %s\n", strerror(errno));} else if (ret == 0) {return -1;} 
@@ -1028,17 +980,21 @@ int set_mission()
             mavlink_status_t status;
             for (int i = 0; i < ret; ++i) {
             if (mavlink_parse_char(MAVLINK_COMM_0, buffer[i], &msg, &status) == 1) {
-                if (msg.msgid = MAVLINK_MSG_ID_MISSION_CURRENT){
+                if (msg.msgid == MAVLINK_MSG_ID_MISSION_CURRENT){
                 fl = 1;
                 mavlink_mission_current_t current;
                 mavlink_msg_mission_current_decode(&msg, &current);
-                cout<<"mission current"<<endl;
+                int seq = current.seq;
+                cout<<"mission current "<<seq<<endl;
             }
-             if (msg.msgid = MAVLINK_MSG_ID_STATUSTEXT){
+             if (msg.msgid == MAVLINK_MSG_ID_STATUSTEXT){
                 fl = 1;
                 mavlink_statustext_t status_text_msg;
                 mavlink_msg_statustext_decode(&msg, &status_text_msg);
-                cout<<"statustext"<<endl;
+                uint8_t sev = status_text_msg.severity;
+                // char s[50] =  status_text_msg.text;
+               printf("Severity: %u, Text: %s\n", status_text_msg.severity, status_text_msg.text);
+\
             }
         }
         }
@@ -1048,5 +1004,83 @@ int set_mission()
         mtx.unlock();
     return 0;
 }
-};
+
+
+int start_mission()
+{
+    mtx.lock();
+    mavlink_message_t msg;
+     mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, MAV_CMD_MISSION_START, 0,
+    0, 0, 0, 0, 0, 0 , 0);
+
+    if (send_message(&msg)) return -1;
+
+    mtx.unlock();
+
+}
+
+int pause_mission(int a)
+{
+     mtx.lock();
+    mavlink_message_t msg;
+
+    mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, MAV_CMD_DO_SET_MODE, 0,
+    		MAV_MODE_AUTO_ARMED, 0, 0, 0, 0, 0 , 0);
+    if (send_message(&msg)) return -1;
+
+     mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, MAV_CMD_DO_PAUSE_CONTINUE, 0,
+    a, 0, 0, 0, 0, 0 , 0);
+    // mavlink_msg_command_int_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, 3, MAV_CMD_OVERRIDE_GOTO, 0, true,
+    // MAV_GOTO_DO_HOLD, MAV_GOTO_HOLD_AT_CURRENT_POSITION, 0, 0, 0, 0 , 0);
+    if (send_message(&msg)) return -1;
+
+    mtx.unlock();
+}
+int send_message(mavlink_message_t* msg)
+{
+    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+    uint16_t len = mavlink_msg_to_send_buffer(buf, msg);
+    ssize_t bytes_sent = sendto(socket_fd, buf, len, 0, (struct sockaddr*)&src_addr, src_addr_len);
+
+    if(bytes_sent != len) return -1;
+    return 0;
+}
+
+int clear_mission()
+{
+    mtx.lock();
+    mavlink_message_t msg;
+    mavlink_msg_mission_clear_all_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, 0);
+    if (send_message(&msg)) return -1;
+
+    fl=0;
+    while(!fl)
+    {
+            char buffer[280]; 
+            const int ret = recvfrom(
+            socket_fd, buffer, sizeof(buffer), 0, (struct sockaddr*)(&src_addr), &src_addr_len);
+            if (ret < 0) {printf("recvfrom error: %s\n", strerror(errno));} else if (ret == 0) {return -1;} 
+            src_addr_set = true;
+            mavlink_message_t msg;
+            mavlink_status_t status;
+            for (int i = 0; i < ret; ++i) {
+            if (mavlink_parse_char(MAVLINK_COMM_0, buffer[i], &msg, &status) == 1) {
+                if (msg.msgid == MAVLINK_MSG_ID_MISSION_ACK){
+                fl = 1;
+                mavlink_mission_ack_t ack;
+                mavlink_msg_mission_ack_decode(&msg, &ack);
+                cout<<"mission ack "<<endl;
+                if (ack.type == MAV_MISSION_ACCEPTED)
+                cout<<"success"<<endl;
+            }
+        }
+        }
+    }
+
+    mtx.unlock();
+
+    return 0;
+}
+}; 
+
 
