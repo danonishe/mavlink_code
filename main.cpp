@@ -1,6 +1,6 @@
 
 #include<iostream>
-#include " class.h"
+#include "project/ class.h"
 #include<string>
 #include<vector>
 
@@ -119,17 +119,19 @@ if (commander[0]=="/set")
 
 if (commander[0]=="/pause")
 {
-    if (commander.size()>1)
-    {
-        (!mav.pause_mission(stoi(commander[1])))? cout<<"success pause mission\n": cout<<"error pause mission \n";
-    }else
-    {
-        cout<<"нет number"<<endl;
-    }
+ 
+(!mav.pause_mission())? cout<<"success pause mission\n": cout<<"error pause mission \n";
 
     fl=1;
 }
 
+if (commander[0]=="/cont")
+{
+ 
+(!mav.continue_mission())? cout<<"success continue mission\n": cout<<"error continue mission \n";
+
+    fl=1;
+}
 
 if (commander[0]=="/start")
 {

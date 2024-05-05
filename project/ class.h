@@ -251,20 +251,6 @@ struct  MavData
 };
 
 
-struct Item
-{
-   
-    float altitude;
-    int altitudeMode;
-    bool autoContinue;
-    int command;
-    int doJumpId;
-    int frame;
-    string type;
-    vector <float> params;
-
-};
-
 
 class MavlinkReceiver 
 {
@@ -780,7 +766,7 @@ int return_to_lunch()
 int parse_mission_json(string s)
 {
 
-    std::ifstream ifs("../mission_protocols/"+s);
+    std::ifstream ifs("./mission_protocols/"+s);
     j = json::parse(ifs);
     ifs.close();
     return 0;
@@ -828,7 +814,11 @@ int upload_mission()
         cout<<"пришло "<<k+1<<endl;
         mavlink_message_t msg_item;
         auto params = j["mission"]["items"][k]["params"];
-
+        auto p3 = params[3];
+        if(p3==nullptr)
+        {
+            p3 = NAN;
+        }
         mavlink_msg_mission_item_pack(
             42,
             MAV_COMP_ID_MISSIONPLANNER,
@@ -840,7 +830,7 @@ int upload_mission()
             items[k]["command"],
             1,
             items[k]["autoContinue"],
-            params[0],params[1],params[2],0,params[4],params[5],params[6],
+            params[0],params[1],params[2],p3,params[4],params[5],params[6],
             0);
         if (send_message(&msg_item)) return -1;
         cout<<"ушел"<<k+1<<endl;
@@ -1019,23 +1009,39 @@ int start_mission()
 
 }
 
-int pause_mission(int a)
+int pause_mission()
 {
      mtx.lock();
     mavlink_message_t msg;
 
     mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, MAV_CMD_DO_SET_MODE, 0,
-    		MAV_MODE_AUTO_ARMED, 0, 0, 0, 0, 0 , 0);
+    209.0, 4.0, 3.0, 0, 0, 0 , 0);
     if (send_message(&msg)) return -1;
 
-     mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, MAV_CMD_DO_PAUSE_CONTINUE, 0,
-    a, 0, 0, 0, 0, 0 , 0);
+    //  mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, MAV_CMD_DO_PAUSE_CONTINUE, 0,
+    // a, 0, 0, 0, 0, 0 , 0);
     // mavlink_msg_command_int_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, 3, MAV_CMD_OVERRIDE_GOTO, 0, true,
     // MAV_GOTO_DO_HOLD, MAV_GOTO_HOLD_AT_CURRENT_POSITION, 0, 0, 0, 0 , 0);
+    // if (send_message(&msg)) return -1;
+
+    mtx.unlock();
+    return 0;
+}
+
+int continue_mission()
+{
+     mtx.lock();
+    mavlink_message_t msg;
+
+    mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, MAV_CMD_DO_SET_MODE, 0,
+    209.0, 4.0, 4.0, 0, 0, 0 , 0);
     if (send_message(&msg)) return -1;
 
     mtx.unlock();
+    return 0;
 }
+
+
 int send_message(mavlink_message_t* msg)
 {
     uint8_t buf[MAVLINK_MAX_PACKET_LEN];
