@@ -10,7 +10,14 @@
                 "-g",
                 "${file}",
                 "-o",
-                "${fileDirname}/${fileBasenameNoExtension}"
+                "${fileDirname}/${fileBasenameNoExtension}",
+                "reverseGeodesic/getCoordinate.cpp",
+                "main_class/main_methods.cpp",
+                "main_class/commands.cpp",
+                "main_class/utils.cpp",
+                "main_class/mission_commands.cpp",
+                "main_class/offboard_commands.cpp",
+
             ],
             "options": {
                 "cwd": "${fileDirname}"

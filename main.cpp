@@ -1,12 +1,15 @@
 
 #include<iostream>
-#include "project/ class.h"
+#include "main_class/ class.h"
 #include<string>
 #include<vector>
+#include <cmath>
 
 
 int main(int argc, char* argv[])
 {
+
+
   MavlinkReceiver mav;
   if(mav.connect()!=0)
   {
