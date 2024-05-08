@@ -146,6 +146,18 @@ if (commander[0]=="/clear")
     fl=1;
 }
 
+if (commander[0]=="/offboard")
+{
+    (!mav.set_offboard())?cout<<"success set offboard\n":cout<<"error set offboard\n";
+    fl=1;
+}
+
+if (commander[0]=="/send")
+{
+    (!mav.send_offboard())?cout<<"success send offboard\n":cout<<"error send offboard\n";
+    fl=1;
+}
+
 if (!fl)
 {
     cout<<"unknown command"<<endl;
