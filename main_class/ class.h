@@ -23,7 +23,7 @@
 #include <string>
 #include <nlohmann/json.hpp>
 #include <fstream>
-#include "../reverseGeodesic/getCoordinate.h"
+#include "../geodesic/getCoordinate.h"
 using namespace std;
 using json = nlohmann::json;
 

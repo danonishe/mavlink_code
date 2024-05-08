@@ -11,7 +11,7 @@
                 "${file}",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}",
-                "reverseGeodesic/getCoordinate.cpp",
+                "geodesic/getCoordinate.cpp",
                 "main_class/main_methods.cpp",
                 "main_class/commands.cpp",
                 "main_class/utils.cpp",
