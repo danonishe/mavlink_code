@@ -1,9 +1,7 @@
 
 #include<iostream>
 #include "main_class/ class.h"
-#include<string>
-#include<vector>
-#include <cmath>
+
 
 
 int main(int argc, char* argv[])
@@ -18,8 +16,11 @@ int main(int argc, char* argv[])
   }
 
 thread t([&](){mav.ProcessData();});
+thread t1;
+ thread t2([&](){mav.send_heartbeat();});
+ 
 
-this_thread::sleep_for(chrono::milliseconds(100));
+//this_thread::sleep_for(chrono::milliseconds(100));
 
 vector<string> commander;
 while (true){
@@ -157,7 +158,17 @@ if (commander[0]=="/offboard")
 
 if (commander[0]=="/send")
 {
-    (!mav.send_offboard())?cout<<"success send offboard\n":cout<<"error send offboard\n";
+
+     t1 =thread([&](){ mav.send_offboard();});
+    // (!mav.send_offboard())?cout<<"success send offboard\n":cout<<"error send offboard\n";
+    fl=1;
+}
+
+if (commander[0]=="/disable")
+{
+    
+    (!mav.disable_offboard())?cout<<"success disable offboard\n":cout<<"error disable offboard\n";
+    t1.join();
     fl=1;
 }
 
@@ -167,7 +178,9 @@ if (!fl)
 }
  }
 
-t.join(); 
+t.join();
+t1.join();
+t2.join();
  
     return 0;
 }

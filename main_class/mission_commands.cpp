@@ -21,7 +21,7 @@ int MavlinkReceiver::upload_mission()
         while (!isSeq)
         {
         mavlink_message_t msg;
-        mavlink_msg_mission_count_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid,  count ,0,0);
+        mavlink_msg_mission_count_pack(system_id, component_id, &msg, sysid, compid,  count ,0,0);
         if (send_message(&msg)) return -1;
 
         for (int i =0;i<5&&!isSeq;++i)
@@ -57,8 +57,8 @@ int MavlinkReceiver::upload_mission()
             p3 = NAN;
         }
         mavlink_msg_mission_item_pack(
-            42,
-            MAV_COMP_ID_MISSIONPLANNER,
+           system_id, 
+           component_id,
             &msg_item,
             sysid,
             compid,
@@ -144,7 +144,7 @@ int MavlinkReceiver::download_mission()
     while(!fl)
     {
     mavlink_message_t msg;
-    mavlink_msg_mission_request_list_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, 0);
+    mavlink_msg_mission_request_list_pack(system_id, component_id, &msg, sysid, compid, 0);
      if (send_message(&msg)) return -1;
 
     for (int i=0;i<5&&!fl;++i)
@@ -189,7 +189,7 @@ int MavlinkReceiver::set_mission(int a)
 {
     mtx.lock();
     mavlink_message_t msg;
-    mavlink_msg_mission_set_current_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, a);
+    mavlink_msg_mission_set_current_pack(system_id, component_id, &msg, sysid, compid, a);
     // mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, 224, 0,
     // a, 1, 0, 0, 0, 0 , 0);
 
@@ -238,7 +238,7 @@ int MavlinkReceiver::start_mission()
 {
     mtx.lock();
     mavlink_message_t msg;
-     mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, MAV_CMD_MISSION_START, 0,
+     mavlink_msg_command_long_pack(system_id, component_id, &msg, sysid, compid, MAV_CMD_MISSION_START, 0,
     0, 0, 0, 0, 0, 0 , 0);
 
     if (send_message(&msg)) return -1;
@@ -255,7 +255,7 @@ int MavlinkReceiver::pause_mission()
      mtx.lock();
     mavlink_message_t msg;
 
-    mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, MAV_CMD_DO_SET_MODE, 0,
+    mavlink_msg_command_long_pack(system_id, component_id, &msg, sysid, compid, MAV_CMD_DO_SET_MODE, 0,
     209.0, 4.0, 3.0, 0, 0, 0 , 0);
     if (send_message(&msg)) return -1;
 
@@ -274,7 +274,7 @@ int MavlinkReceiver::continue_mission()
      mtx.lock();
     mavlink_message_t msg;
 
-    mavlink_msg_command_long_pack(42,MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, MAV_CMD_DO_SET_MODE, 0,
+    mavlink_msg_command_long_pack(system_id, component_id,&msg, sysid, compid, MAV_CMD_DO_SET_MODE, 0,
     209.0, 4.0, 4.0, 0, 0, 0 , 0);
     if (send_message(&msg)) return -1;
 
@@ -287,7 +287,7 @@ int MavlinkReceiver::clear_mission()
 {
     mtx.lock();
     mavlink_message_t msg;
-    mavlink_msg_mission_clear_all_pack(42, MAV_COMP_ID_MISSIONPLANNER, &msg, sysid, compid, 0);
+    mavlink_msg_mission_clear_all_pack(system_id, component_id, &msg, sysid, compid, 0);
     if (send_message(&msg)) return -1;
 
     fl=0;

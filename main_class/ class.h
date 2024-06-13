@@ -1,13 +1,11 @@
 #pragma once
 #include <iostream>
 #include <unistd.h>
-#include <cstring>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <thread>
 #include <atomic>
 #include <functional>
-#include <vector> 
 #include <iomanip>
 #include <time.h>
 #include <errno.h>
@@ -16,13 +14,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <netinet/in.h>
-#include </home/dana/mavlink/build/include/mavlink/common/mavlink.h>
 #include<chrono>
 #include <mutex>
 #include <iomanip>
 #include <string>
 #include <nlohmann/json.hpp>
 #include <fstream>
+#include<string>
+#include<vector>
+#include <cmath>
+
+#include </home/dana/mavlink/build/include/mavlink/common/mavlink.h>
+
 #include "../geodesic/getCoordinate.h"
 using namespace std;
 using json = nlohmann::json;
@@ -262,8 +265,8 @@ private:
     struct sockaddr_in addr = {};
     static constexpr int BUFFER_LENGTH = 2041;
     mutex mtx;
-    int sysid=0;
-    int compid=0;
+    int sysid=1;
+    int compid=1;
     json j;
     bool fl = 0;
     struct sockaddr_in src_addr = {};
@@ -271,6 +274,11 @@ private:
     std::thread thread_;
     bool running_ = false;
     bool src_addr_set;
+    bool run_offboard = false;
+    bool offboard_ = false;
+
+    const uint8_t system_id = 42;
+    const uint8_t component_id = MAV_COMP_ID_MISSIONPLANNER;
 public:
 MavlinkReceiver() : socket_fd(-1) {}
     ~MavlinkReceiver() {disconnect();}
@@ -324,7 +332,9 @@ int clear_mission();
 int set_offboard();
 
 
-int send_offboard();
+void send_offboard();
+
+int disable_offboard();
 };
 
 

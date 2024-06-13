@@ -56,6 +56,7 @@ void MavlinkReceiver::disconnect()
 
 void MavlinkReceiver::ProcessData()
 {
+
     while(running_)
     {
     // We just receive one UDP datagram and then return again.
@@ -75,8 +76,8 @@ void MavlinkReceiver::ProcessData()
     mavlink_status_t status;
     for (int i = 0; i < ret; ++i) {
         if (mavlink_parse_char(MAVLINK_COMM_0, buffer[i], &msg, &status) == 1) {
-            sysid = msg.sysid;
-            compid = msg.compid;
+            // sysid = msg.sysid;
+            // compid = msg.compid;
             // printf(
             //     "Received message %d from %d/%d\n",
             //     message.msgid, message.sysid, message.compid);
@@ -90,8 +91,13 @@ void MavlinkReceiver::ProcessData()
                 MsgData.heartbeat.base_mode = heartbeat_msg.base_mode;
                 MsgData.heartbeat.custom_mode = heartbeat_msg.custom_mode;
                 MsgData.heartbeat.system_status = heartbeat_msg.system_status;
-
+                // cout<< heartbeat_msg.base_mode<<' '<<heartbeat_msg.custom_mode<<endl;
                 // printf("Got heartbeat from autopilot\n");
+
+                if (MsgData.heartbeat.custom_mode == MAV_MODE_FLAG_GUIDED_ENABLED) {
+                // Дрон находится в режиме offboard
+                printf("Дрон находится в режиме offboard.\n");
+
 
                 break;
             }
@@ -380,22 +386,25 @@ void MavlinkReceiver::ProcessData()
         }
     }
 
-    if (src_addr_set) {
-            send_heartbeat();
-        }
+    // if (src_addr_set) {
+    //     thread t2([&](){send_heartbeat();});
+    //     t2.join();
+    //     }
     }
 }
-
+}
 
 void MavlinkReceiver::send_heartbeat()
 {
-        mavlink_message_t message;
-        const uint8_t system_id = 42;
+    while(1)
+    {
+           mavlink_message_t message;
+        // const uint8_t system_id = 42;
         const uint8_t base_mode = 0;
         const uint8_t custom_mode = 0;
         mavlink_msg_heartbeat_pack_chan(
             system_id,
-            MAV_COMP_ID_PERIPHERAL,
+            component_id,
             MAVLINK_COMM_0,
             &message,
             MAV_TYPE_GENERIC,
@@ -403,7 +412,12 @@ void MavlinkReceiver::send_heartbeat()
             base_mode,
             custom_mode,
             MAV_STATE_STANDBY);
+            sleep(2);
+        // this_thread::sleep_for(chrono::milliseconds(2000));
 
         if (send_message(&message))  printf("heatbeat sendto error: %s\n", strerror(errno));
 
+
+    }
+     
 }
